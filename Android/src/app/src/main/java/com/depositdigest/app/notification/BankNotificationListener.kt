@@ -65,12 +65,33 @@ class BankNotificationListener : NotificationListenerService() {
         notifId: Int
     ) {
         val fullText = "$title $text"
+        android.util.Log.i("DepositDigest", "알림 감지: pkg=$packageName, title=$title, text=$text")
 
         // 입금/출금 키워드 판별 — 입금 관련 키워드가 있을 때만 전송
-        val depositKeywords = listOf("입금", "이체받음", "받았습니다", "지급", "예치")
+        // 더 넓은 범위: 입금, 이체받음, 받음, 수신, 입금완료, 입금되었습니다, 이체되었습니다(받음)
+        val depositKeywords = listOf(
+            "입금", "이체받음", "받았습니다", "지급", "예치",
+            "수신", "입금완료", "입금되었습니다", "이체되었습니다", "송금받음"
+        )
         val isDeposit = depositKeywords.any { fullText.contains(it) }
-        val isWithdraw = fullText.contains("출금") || fullText.contains("이체했습니다")
-        if (!isDeposit || isWithdraw) return  // 출금 알림은 무시
+        
+        // 출금 키워드: 출금, 이체함, 보냄, 인출, 출금완료
+        val withdrawKeywords = listOf(
+            "출금", "이체했습니다", "이체함", "보냈습니다", "송금함",
+            "인출", "출금완료", "지출", "결제", "사용"
+        )
+        val isWithdraw = withdrawKeywords.any { fullText.contains(it) }
+        
+        android.util.Log.i("DepositDigest", "입금=$isDeposit, 출금=$isWithdraw")
+        
+        if (!isDeposit) {
+            android.util.Log.i("DepositDigest", "입금 키워드 없음 — 무시")
+            return
+        }
+        if (isWithdraw) {
+            android.util.Log.i("DepositDigest", "출금 키워드 동시 감지 — 무시")
+            return
+        }
 
         // 금액 파싱: "500,000원" / "500000원" / "50만원"
         val amount = parseAmount(fullText)
@@ -78,7 +99,10 @@ class BankNotificationListener : NotificationListenerService() {
         // 계좌 힌트 파싱 (마지막 4자리 등): 설정에 지정 계좌 힌트가 있으면 일치할 때만 전송
         if (s.accountHint.isNotBlank()) {
             val hint = s.accountHint.trim()
-            if (!fullText.contains(hint)) return
+            if (!fullText.contains(hint)) {
+                android.util.Log.i("DepositDigest", "계좌 힌트 불일치 ($hint) — 무시")
+                return
+            }
         }
 
         // 텔레그램 메시지 조립
@@ -97,6 +121,7 @@ class BankNotificationListener : NotificationListenerService() {
 
         runCatching { telegram.sendHtml(s.telegramBotToken, s.telegramChatId, msg) }
             .onFailure { android.util.Log.e("DepositDigest", "텔레그램 전송 실패: ${it.message}") }
+            .onSuccess { android.util.Log.i("DepositDigest", "텔레그램 전송 성공") }
 
         // 알림 자동 제거
         removeNotification(notifId)
