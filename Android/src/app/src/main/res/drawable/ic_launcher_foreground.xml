@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 간단한 말풍선 아이콘 (카카오톡 테마 색 #3C1E1E) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#3C1E1E"
+        android:pathData="M54,22 C36.7,22 22,33.8 22,48.4 C22,58.1 28.2,66.7 37.6,71.9 L34.8,86 L48.9,78.4 C50.5,78.6 52.2,78.7 54,78.7 C71.3,78.7 86,66.9 86,52.3 C86,37.7 71.3,22 54,22 Z" />
+    <path
+        android:fillColor="#FEE500"
+        android:pathData="M40,48 m-4,0 a4,4 0 1,1 8,0 a4,4 0 1,1 -8,0" />
+    <path
+        android:fillColor="#FEE500"
+        android:pathData="M54,48 m-4,0 a4,4 0 1,1 8,0 a4,4 0 1,1 -8,0" />
+    <path
+        android:fillColor="#FEE500"
+        android:pathData="M68,48 m-4,0 a4,4 0 1,1 8,0 a4,4 0 1,1 -8,0" />
+</vector>

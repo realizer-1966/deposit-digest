@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DepositDigest</string>
+    <string name="notification_listener_label">DepositDigest 은행 알림 리스너</string>
+    <string name="notification_channel_name">DepositDigest 입금 알림</string>
+    <string name="notification_channel_desc">은행 입금 알림을 감지해 텔레그램으로 전송합니다</string>
+</resources>
