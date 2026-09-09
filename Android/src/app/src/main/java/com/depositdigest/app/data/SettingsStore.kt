@@ -17,7 +17,7 @@ class SettingsStore(private val context: Context) {
         val bankPackages: List<String> = emptyList(),
         /** 텔레그램에 표시할 은행 라벨 (선택, 예: "KB국민") */
         val bankLabel: String = "",
-        /** 내 계좌 식별 힌트 (선택, 예: "123-45" — 알림에 이 텍스트가 포함된 것만 전송) */
+        /** 계좌 힌트 (선택, 예: "123-45"). 입력 시: 이 계좌의 입금+출금 모두 전송. 비우면: 입금만 전송. */
         val accountHint: String = "",
         val telegramBotToken: String = "",
         val telegramChatId: String = "",

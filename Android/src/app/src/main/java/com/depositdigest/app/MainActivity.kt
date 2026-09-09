@@ -140,7 +140,7 @@ fun SettingsScreenContent() {
             value = accountHint,
             onValueChange = { accountHint = it },
             label = { Text("계좌 힌트 (선택, 예: 123-45)") },
-            placeholder = { Text("알림에 이 텍스트가 포함된 것만 전송") },
+            placeholder = { Text("입력 시: 이 계좌의 입금+출금 모두 전송 / 비우면: 입금만 전송") },
             modifier = Modifier.fillMaxWidth()
         )
 

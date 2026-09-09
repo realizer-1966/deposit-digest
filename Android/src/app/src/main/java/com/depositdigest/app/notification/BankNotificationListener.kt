@@ -99,50 +99,67 @@ class BankNotificationListener : NotificationListenerService() {
         
         android.util.Log.i("DepositDigest", "[$timestamp] 입금=$isDeposit, 출금=$isWithdraw")
         
-        // 2단계: 입금 키워드 없고 출금 키워드 있으면 → 출금 알림 무시
+        // 2단계: 금액 파싱
+        val amount = parseAmount(fullText)
+
+        // 3단계: 계좌 힌트 모드 — 힌트가 설정되어 있으면 그 계좌의 입금+출금 모두 전송
+        if (s.accountHint.isNotBlank()) {
+            val hint = s.accountHint.trim()
+            if (!fullText.contains(hint)) {
+                // 다른 계좌의 알림 — 텔레그램 스팸 방지를 위해 로그만 남기고 무시
+                android.util.Log.i("DepositDigest", "[$timestamp] 계좌 힌트 불일치 ($hint) — 무시")
+                return
+            }
+            // 힌트 일치 → 입금/출금 구분해서 모두 전송
+            val kind = when {
+                isDeposit && !isWithdraw -> "입금"
+                isWithdraw && !isDeposit -> "출금"
+                else -> "변동"
+            }
+            val icon = when (kind) { "입금" -> "💰"; "출금" -> "💸"; else -> "🧾" }
+            val bankLabel = s.bankLabel.ifBlank { packageName.substringAfterLast('.') }
+            val amountStr = if (amount != null) "%,d원".format(amount) else "금액 미확인"
+            val msg = buildString {
+                appendLine("$icon <b>$kind 알림</b>")
+                appendLine("은행: $bankLabel")
+                appendLine("금액: $amountStr")
+                appendLine("시각: $timestamp")
+                appendLine()
+                appendLine("<b>원본 알림</b>")
+                appendLine("제목: $title")
+                append("내용: $text")
+            }
+            runCatching { telegram.sendHtml(s.telegramBotToken, s.telegramChatId, msg) }
+                .onSuccess { android.util.Log.i("DepositDigest", "[$timestamp] $kind 알림 전송 성공") }
+                .onFailure { android.util.Log.e("DepositDigest", "[$timestamp] 텔레그램 전송 실패: ${it.message}") }
+            removeNotification(notifKey)
+            return
+        }
+
+        // 4단계 (계좌 힌트 없을 때): 출금 알림 무시
         if (isWithdraw && !isDeposit) {
             val debugMsg = "🔍 <b>알림 감지됨 (출금으로 간주)</b>\n" +
                 "시간: $timestamp\n" +
                 "은행: ${packageName}\n" +
                 "제목: $title\n" +
                 "내용: $text\n\n" +
-                "❌ 출금 알림은 무시됩니다"
+                "❌ 출금 알림은 무시됩니다 (계좌 힌트를 설정하면 출금도 전송됩니다)"
             runCatching { telegram.sendHtml(s.telegramBotToken, s.telegramChatId, debugMsg) }
             android.util.Log.i("DepositDigest", "[$timestamp] 출금 알림 — 무시")
             return
         }
-        
-        // 3단계: 입금 키워드 없으면 로그만 보내고 종료
+
+        // 5단계 (계좌 힌트 없을 때): 입금 키워드 없으면 무시
         if (!isDeposit) {
             val debugMsg = "🔍 <b>알림 감지됨 (입금 아님)</b>\n" +
                 "시간: $timestamp\n" +
                 "은행: ${packageName}\n" +
                 "제목: $title\n" +
                 "내용: $text\n\n" +
-                "❌ 입금 키워드가 없습니다"
+                "❌ 입금 키워드가 없습니다 (계좌 힌트를 설정하면 모든 알림이 전송됩니다)"
             runCatching { telegram.sendHtml(s.telegramBotToken, s.telegramChatId, debugMsg) }
             android.util.Log.i("DepositDigest", "[$timestamp] 입금 키워드 없음 — 무시")
             return
-        }
-
-        // 4단계: 금액 파싱
-        val amount = parseAmount(fullText)
-
-        // 5단계: 계좌 힌트 확인
-        if (s.accountHint.isNotBlank()) {
-            val hint = s.accountHint.trim()
-            if (!fullText.contains(hint)) {
-                val debugMsg = "🔍 <b>알림 감지됨 (계좌 힌트 불일치)</b>\n" +
-                    "시간: $timestamp\n" +
-                    "은행: ${packageName}\n" +
-                    "제목: $title\n" +
-                    "내용: $text\n" +
-                    "예상 금액: ${if (amount != null) "%,d원".format(amount) else "미확인"}\n\n" +
-                    "❌ 계좌 힌트 <b>$hint</b>가 알림에 없습니다"
-                runCatching { telegram.sendHtml(s.telegramBotToken, s.telegramChatId, debugMsg) }
-                android.util.Log.i("DepositDigest", "[$timestamp] 계좌 힌트 불일치 ($hint) — 무시")
-                return
-            }
         }
 
         // 6단계: 텔레그램 입금 알림 전송
