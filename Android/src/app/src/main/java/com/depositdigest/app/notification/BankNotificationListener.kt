@@ -60,11 +60,12 @@ class BankNotificationListener : NotificationListenerService() {
                 runCatching { telegram.sendHtml(settings.telegramBotToken, settings.telegramChatId, dbg) }
             }
 
-            // 설정된 은행 앱 패키지만 통과
+            // 설정된 은행 앱 패키지만 통과 — 매칭된 인덱스를 함께 전달 (계좌 힌트 위치 대응용)
             if (settings.bankPackages.isEmpty()) return@launch
-            if (settings.bankPackages.none { sbn.packageName == it }) return@launch
+            val pkgIndex = settings.bankPackages.indexOfFirst { it == sbn.packageName }
+            if (pkgIndex < 0) return@launch
 
-            process(settings, sbn.packageName, title, text, notifKey)
+            process(settings, sbn.packageName, title, text, notifKey, pkgIndex)
         }
     }
 
@@ -73,7 +74,8 @@ class BankNotificationListener : NotificationListenerService() {
         packageName: String,
         title: String,
         text: String,
-        notifKey: String
+        notifKey: String,
+        pkgIndex: Int
     ) {
         val fullText = "$title $text"
         val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.KOREA).format(java.util.Date())
@@ -102,12 +104,12 @@ class BankNotificationListener : NotificationListenerService() {
         // 2단계: 금액 파싱
         val amount = parseAmount(fullText)
 
-        // 3단계: 계좌 힌트 모드 — 힌트가 설정되어 있으면 그 계좌의 입금+출금 모두 전송
-        if (s.accountHint.isNotBlank()) {
-            val hint = s.accountHint.trim()
-            if (!fullText.contains(hint)) {
-                // 다른 계좌의 알림 — 텔레그램 스팸 방지를 위해 로그만 남기고 무시
-                android.util.Log.i("DepositDigest", "[$timestamp] 계좌 힌트 불일치 ($hint) — 무시")
+        // 3단계: 계좌 힌트 모드 — 힌트 목록이 있으면 이 패키지 위치의 힌트로 판별 (입금+출금 모두 전송)
+        val myHint = s.accountHints.getOrNull(pkgIndex)?.trim().orEmpty()
+        if (myHint.isNotBlank()) {
+            if (!fullText.contains(myHint)) {
+                // 이 패키지의 다른 계좌 알림 — 텔레그램 스팸 방지를 위해 로그만 남기고 무시
+                android.util.Log.i("DepositDigest", "[$timestamp] 계좌 힌트 불일치 ($myHint) — 무시")
                 return
             }
             // 힌트 일치 → 입금/출금 구분해서 모두 전송

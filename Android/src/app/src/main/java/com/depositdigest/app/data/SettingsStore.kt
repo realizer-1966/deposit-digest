@@ -17,8 +17,8 @@ class SettingsStore(private val context: Context) {
         val bankPackages: List<String> = emptyList(),
         /** 텔레그램에 표시할 은행 라벨 (선택, 예: "KB국민") */
         val bankLabel: String = "",
-        /** 계좌 힌트 (선택, 예: "123-45"). 입력 시: 이 계좌의 입금+출금 모두 전송. 비우면: 입금만 전송. */
-        val accountHint: String = "",
+        /** 계좌 힌트 목록 — bankPackages 순서와 동일하게 한 줄에 하나. 입력 시 그 계좌의 입금+출금 모두 전송, 비우면 입금만 전송. */
+        val accountHints: List<String> = emptyList(),
         val telegramBotToken: String = "",
         val telegramChatId: String = "",
         /** 디버그 모드: 패키지 필터 전에 감지한 모든 알림을 텔레그램으로 보고 */
@@ -28,7 +28,7 @@ class SettingsStore(private val context: Context) {
     private object Keys {
         val bankPackages = stringPreferencesKey("bank_packages")
         val bankLabel = stringPreferencesKey("bank_label")
-        val accountHint = stringPreferencesKey("account_hint")
+        val accountHints = stringPreferencesKey("account_hints")
         val telegramBotToken = stringPreferencesKey("telegram_bot_token")
         val telegramChatId = stringPreferencesKey("telegram_chat_id")
         val debugMode = booleanPreferencesKey("debug_mode")
@@ -39,7 +39,7 @@ class SettingsStore(private val context: Context) {
             bankPackages = (prefs[Keys.bankPackages] ?: "").split("\n")
                 .map { it.trim() }.filter { it.isNotEmpty() },
             bankLabel = prefs[Keys.bankLabel] ?: "",
-            accountHint = prefs[Keys.accountHint] ?: "",
+            accountHints = (prefs[Keys.accountHints] ?: "").split("\n").map { it.trim() },
             telegramBotToken = prefs[Keys.telegramBotToken] ?: "",
             telegramChatId = prefs[Keys.telegramChatId] ?: "",
             debugMode = prefs[Keys.debugMode] ?: false,
@@ -49,7 +49,7 @@ class SettingsStore(private val context: Context) {
     suspend fun update(
         bankPackages: List<String>? = null,
         bankLabel: String? = null,
-        accountHint: String? = null,
+        accountHints: List<String>? = null,
         telegramBotToken: String? = null,
         telegramChatId: String? = null,
         debugMode: Boolean? = null,
@@ -57,7 +57,7 @@ class SettingsStore(private val context: Context) {
         context.dataStore.edit { prefs ->
             bankPackages?.let { prefs[Keys.bankPackages] = it.joinToString("\n") }
             bankLabel?.let { prefs[Keys.bankLabel] = it }
-            accountHint?.let { prefs[Keys.accountHint] = it }
+            accountHints?.let { prefs[Keys.accountHints] = it.joinToString("\n") }
             telegramBotToken?.let { prefs[Keys.telegramBotToken] = it }
             telegramChatId?.let { prefs[Keys.telegramChatId] = it }
             debugMode?.let { prefs[Keys.debugMode] = it }

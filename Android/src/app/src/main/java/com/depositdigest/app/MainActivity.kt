@@ -61,7 +61,7 @@ fun SettingsScreenContent() {
 
     var bankPackages by remember { mutableStateOf("") }
     var bankLabel by remember { mutableStateOf("") }
-    var accountHint by remember { mutableStateOf("") }
+    var accountHints by remember { mutableStateOf("") }
     var botToken by remember { mutableStateOf("") }
     var chatId by remember { mutableStateOf("") }
     var saved by remember { mutableStateOf(false) }
@@ -74,7 +74,7 @@ fun SettingsScreenContent() {
         store.settingsFlow.collect { s ->
             bankPackages = s.bankPackages.joinToString("\n")
             bankLabel = s.bankLabel
-            accountHint = s.accountHint
+            accountHints = s.accountHints.joinToString("\n")
             botToken = s.telegramBotToken
             chatId = s.telegramChatId
         }
@@ -137,11 +137,12 @@ fun SettingsScreenContent() {
         )
 
         OutlinedTextField(
-            value = accountHint,
-            onValueChange = { accountHint = it },
-            label = { Text("계좌 힌트 (선택, 예: 123-45)") },
-            placeholder = { Text("입력 시: 이 계좌의 입금+출금 모두 전송 / 비우면: 입금만 전송") },
-            modifier = Modifier.fillMaxWidth()
+            value = accountHints,
+            onValueChange = { accountHints = it },
+            label = { Text("계좌 힌트 (패키지명 순서와 동일하게 한 줄에 하나)") },
+            placeholder = { Text("1번째 패키지의 계좌\n2번째 패키지의 계좌\n(빈 줄 = 그 패키지는 입금만)") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2
         )
 
         OutlinedTextField(
@@ -164,7 +165,7 @@ fun SettingsScreenContent() {
                     store.update(
                         bankPackages = bankPackages.split("\n").map { it.trim() }.filter { it.isNotEmpty() },
                         bankLabel = bankLabel,
-                        accountHint = accountHint,
+                        accountHints = accountHints.split("\n").map { it.trim() },
                         telegramBotToken = botToken,
                         telegramChatId = chatId,
                         debugMode = debugMode,
