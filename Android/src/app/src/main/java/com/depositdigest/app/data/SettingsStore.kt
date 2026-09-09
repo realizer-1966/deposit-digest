@@ -1,6 +1,7 @@
 package com.depositdigest.app.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -20,6 +21,8 @@ class SettingsStore(private val context: Context) {
         val accountHint: String = "",
         val telegramBotToken: String = "",
         val telegramChatId: String = "",
+        /** 디버그 모드: 패키지 필터 전에 감지한 모든 알림을 텔레그램으로 보고 */
+        val debugMode: Boolean = false,
     )
 
     private object Keys {
@@ -28,6 +31,7 @@ class SettingsStore(private val context: Context) {
         val accountHint = stringPreferencesKey("account_hint")
         val telegramBotToken = stringPreferencesKey("telegram_bot_token")
         val telegramChatId = stringPreferencesKey("telegram_chat_id")
+        val debugMode = booleanPreferencesKey("debug_mode")
     }
 
     val settingsFlow: Flow<Settings> = context.dataStore.data.map { prefs ->
@@ -38,6 +42,7 @@ class SettingsStore(private val context: Context) {
             accountHint = prefs[Keys.accountHint] ?: "",
             telegramBotToken = prefs[Keys.telegramBotToken] ?: "",
             telegramChatId = prefs[Keys.telegramChatId] ?: "",
+            debugMode = prefs[Keys.debugMode] ?: false,
         )
     }
 
@@ -47,6 +52,7 @@ class SettingsStore(private val context: Context) {
         accountHint: String? = null,
         telegramBotToken: String? = null,
         telegramChatId: String? = null,
+        debugMode: Boolean? = null,
     ) {
         context.dataStore.edit { prefs ->
             bankPackages?.let { prefs[Keys.bankPackages] = it.joinToString("\n") }
@@ -54,6 +60,7 @@ class SettingsStore(private val context: Context) {
             accountHint?.let { prefs[Keys.accountHint] = it }
             telegramBotToken?.let { prefs[Keys.telegramBotToken] = it }
             telegramChatId?.let { prefs[Keys.telegramChatId] = it }
+            debugMode?.let { prefs[Keys.debugMode] = it }
         }
     }
 }

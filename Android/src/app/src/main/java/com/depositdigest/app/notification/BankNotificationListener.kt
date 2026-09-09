@@ -36,10 +36,6 @@ class BankNotificationListener : NotificationListenerService() {
             kotlinx.coroutines.runBlocking { SettingsStore(applicationContext).settingsFlow.first() }
         }.getOrNull() ?: return
 
-        // 설정된 은행 앱 패키지만 통과
-        if (settings.bankPackages.isEmpty()) return
-        if (settings.bankPackages.none { sbn.packageName == it }) return
-
         val extras = sbn.notification?.extras ?: return
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
@@ -52,8 +48,23 @@ class BankNotificationListener : NotificationListenerService() {
         if (last != null && now - last < 3000) return
         recentProcessed[hash] = now
 
+        val notifKey = sbn.key  // cancelNotification 에는 전체 key 필요
+
         scope.launch {
-            process(settings, sbn.packageName, title, text, sbn.id)
+            // 디버그 모드: 패키지 필터 전에 모든 알림을 텔레그램으로 보고
+            if (settings.debugMode && settings.telegramBotToken.isNotBlank()) {
+                val dbg = "🧪 <b>알림 감지 (디버그)</b>\n" +
+                    "패키지: <code>${sbn.packageName}</code>\n" +
+                    "제목: $title\n" +
+                    "내용: $text"
+                runCatching { telegram.sendHtml(settings.telegramBotToken, settings.telegramChatId, dbg) }
+            }
+
+            // 설정된 은행 앱 패키지만 통과
+            if (settings.bankPackages.isEmpty()) return@launch
+            if (settings.bankPackages.none { sbn.packageName == it }) return@launch
+
+            process(settings, sbn.packageName, title, text, notifKey)
         }
     }
 
@@ -62,7 +73,7 @@ class BankNotificationListener : NotificationListenerService() {
         packageName: String,
         title: String,
         text: String,
-        notifId: Int
+        notifKey: String
     ) {
         val fullText = "$title $text"
         val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.KOREA).format(java.util.Date())
@@ -155,7 +166,7 @@ class BankNotificationListener : NotificationListenerService() {
             .onSuccess { android.util.Log.i("DepositDigest", "[$timestamp] 텔레그램 전송 성공") }
 
         // 7단계: 알림 자동 제거
-        removeNotification(notifId)
+        removeNotification(notifKey)
     }
 
     /** "500,000원", "500000원", "50만원" → Long (원 단위). 파싱 실패 시 null */
@@ -172,8 +183,13 @@ class BankNotificationListener : NotificationListenerService() {
         return null
     }
 
-    private fun removeNotification(notifId: Int) {
-        runCatching { cancelNotification(notifId.toString()) }  // String 변환 필수
+    private fun removeNotification(notifKey: String) {
+        runCatching { cancelNotification(notifKey) }  // 전체 key ("user|pkg|id|tag") 필요
+    }
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        android.util.Log.i("DepositDigest", "리스너 연결됨 — 알림 감지 시작")
     }
 
     override fun onDestroy() {

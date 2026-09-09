@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -77,13 +78,20 @@ fun SettingsScreenContent() {
         }
     }
 
-    // 알림 접근 권한 확인
-    LaunchedEffect(Unit) {
-        val cn = android.provider.Settings.Secure.getString(
-            context.contentResolver,
-            "enabled_notification_listeners"
-        ) ?: ""
-        listenerEnabled = cn.contains("com.depositdigest.app")
+    // 알림 접근 권한 확인 — 화면 복귀 시마다 재확인
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                val cn = android.provider.Settings.Secure.getString(
+                    context.contentResolver,
+                    "enabled_notification_listeners"
+                ) ?: ""
+                listenerEnabled = cn.contains("com.depositdigest.app")
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
     }
 
     Column(
@@ -157,6 +165,7 @@ fun SettingsScreenContent() {
                         accountHint = accountHint,
                         telegramBotToken = botToken,
                         telegramChatId = chatId,
+                        debugMode = debugMode,
                     )
                     saved = true
                 }
@@ -169,16 +178,31 @@ fun SettingsScreenContent() {
             }
         }
 
+        Row(verticalAlignment = androidx.compose.foundation.layout.Alignment.CenterVertically) {
+            androidx.compose.material3.Switch(
+                checked = debugMode,
+                onCheckedChange = {
+                    debugMode = it
+                    scope.launch { store.update(debugMode = it) }
+                }
+            )
+            Spacer(Modifier.width(8.dp))
+            Text("🧪 디버그 모드 (모든 알림을 텔레그램으로 보고)", style = MaterialTheme.typography.bodySmall)
+        }
+
         TextButton(onClick = {
-            // 테스트 메시지 전송
+            // 테스트 메시지 전송 — 결과를 화면에 표시
             scope.launch {
-                val s = store.settingsFlow
-                // 간단 테스트: 텔레그램 전송 확인
+                testResult = "전송 중..."
                 val sender = com.depositdigest.app.telegram.TelegramSender()
-                sender.sendHtml(botToken, chatId, "🧪 <b>Deposit Digest 테스트</b>\n설정 저장 및 전송 정상 동작!")
+                val ok = sender.sendHtml(botToken, chatId, "🧪 <b>Deposit Digest 테스트</b>\n설정 저장 및 전송 정상 동작!")
+                testResult = if (ok) "✅ 테스트 전송 성공" else "❌ 테스트 전송 실패 (토큰/채팅ID 확인)"
             }
         }) {
             Text("테스트 메시지 전송")
+        }
+        testResult?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
         }
     }
 }
