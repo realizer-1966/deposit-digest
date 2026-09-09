@@ -66,6 +66,8 @@ fun SettingsScreenContent() {
     var chatId by remember { mutableStateOf("") }
     var saved by remember { mutableStateOf(false) }
     var listenerEnabled by remember { mutableStateOf(false) }
+    var debugMode by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<String?>(null) }
 
     // 설정 로드
     LaunchedEffect(Unit) {
@@ -178,7 +180,7 @@ fun SettingsScreenContent() {
             }
         }
 
-        Row(verticalAlignment = androidx.compose.foundation.layout.Alignment.CenterVertically) {
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             androidx.compose.material3.Switch(
                 checked = debugMode,
                 onCheckedChange = {
