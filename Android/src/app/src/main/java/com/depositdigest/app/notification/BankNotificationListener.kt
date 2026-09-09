@@ -80,21 +80,39 @@ class BankNotificationListener : NotificationListenerService() {
         android.util.Log.i("DepositDigest", "[$timestamp] 알림 감지: pkg=$packageName, title=$title, text=$text")
 
         // 1단계: 입금/출금 키워드 판별
+        // ⚠️ "입출금통장" 같은 통장 이름에 "출금" 글자가 포함되므로,
+        //    판별 전에 "입출금"을 제거해 오판을 방지한다.
+        val normalizedText = fullText.replace("입출금", "")
+        android.util.Log.i("DepositDigest", "[$timestamp] 판별 대상 텍스트: $normalizedText")
+
         val depositKeywords = listOf(
             "입금", "이체받음", "받았습니다", "지급", "예치",
             "수신", "입금완료", "입금되었습니다", "이체되었습니다", "송금받음"
         )
-        val isDeposit = depositKeywords.any { fullText.contains(it) }
+        val isDeposit = depositKeywords.any { normalizedText.contains(it) }
         
         val withdrawKeywords = listOf(
             "출금", "이체했습니다", "이체함", "보냈습니다", "송금함",
             "인출", "출금완료", "지출", "결제", "사용"
         )
-        val isWithdraw = withdrawKeywords.any { fullText.contains(it) }
+        val isWithdraw = withdrawKeywords.any { normalizedText.contains(it) }
         
         android.util.Log.i("DepositDigest", "[$timestamp] 입금=$isDeposit, 출금=$isWithdraw")
         
-        // 2단계: 입금 키워드 없으면 로그만 보내고 종료
+        // 2단계: 입금 키워드 없고 출금 키워드 있으면 → 출금 알림 무시
+        if (isWithdraw && !isDeposit) {
+            val debugMsg = "🔍 <b>알림 감지됨 (출금으로 간주)</b>\n" +
+                "시간: $timestamp\n" +
+                "은행: ${packageName}\n" +
+                "제목: $title\n" +
+                "내용: $text\n\n" +
+                "❌ 출금 알림은 무시됩니다"
+            runCatching { telegram.sendHtml(s.telegramBotToken, s.telegramChatId, debugMsg) }
+            android.util.Log.i("DepositDigest", "[$timestamp] 출금 알림 — 무시")
+            return
+        }
+        
+        // 3단계: 입금 키워드 없으면 로그만 보내고 종료
         if (!isDeposit) {
             val debugMsg = "🔍 <b>알림 감지됨 (입금 아님)</b>\n" +
                 "시간: $timestamp\n" +
@@ -104,19 +122,6 @@ class BankNotificationListener : NotificationListenerService() {
                 "❌ 입금 키워드가 없습니다"
             runCatching { telegram.sendHtml(s.telegramBotToken, s.telegramChatId, debugMsg) }
             android.util.Log.i("DepositDigest", "[$timestamp] 입금 키워드 없음 — 무시")
-            return
-        }
-        
-        // 3단계: 출금 키워드 있으면 로그만 보내고 종료
-        if (isWithdraw) {
-            val debugMsg = "🔍 <b>알림 감지됨 (출금으로 간주)</b>\n" +
-                "시간: $timestamp\n" +
-                "은행: ${packageName}\n" +
-                "제목: $title\n" +
-                "내용: $text\n\n" +
-                "❌ 출금 키워드가 포함되어 무시됨"
-            runCatching { telegram.sendHtml(s.telegramBotToken, s.telegramChatId, debugMsg) }
-            android.util.Log.i("DepositDigest", "[$timestamp] 출금 키워드 동시 감지 — 무시")
             return
         }
 
